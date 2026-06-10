@@ -1,0 +1,23 @@
+default-repository: test-repo
+repositories:
+  test-repo:
+    type: sparql
+    sparql:
+      ontologyPath: "G:/source/test/graph-search-api/graph.ttl"
+      endpoint: "http://ontop3-svc-clone-kbp-dev.xyftest.hisense.com/sparql"
+      prefix: "http://www.jhk.com/finance/business-analysis/"
+  t2-repo:
+    type: sparql
+    sparql:
+      ontologyPath: "G:/source/test/graph-search-api/graph.ttl"
+      endpoint: "http://ontop3-svc-clone-kbp-dev.xyftest.hisense.com/sparql"
+      prefix: "http://www.jhk.com/finance/business-analysis/"
+  nebula-repo:
+    type: nebula
+    nebula:
+      address: "10.19.197.59:9669"
+      username: "root"
+      password: "nebula123"
+      space: "demo_basketballplayer"
+      poolSize: 10
+      timeout: 10000

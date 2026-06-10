@@ -1,0 +1,217 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+
+@prefix ba:   <http://www.jhk.com/finance/business-analysis/> .  # 经营分析根命名空间
+@prefix bacls:  <http://www.jhk.com/finance/business-analysis/class/> .  # 实体类
+@prefix baprop: <http://www.jhk.com/finance/business-analysis/property/> .  # 属性/关系
+
+
+ba: a owl:Ontology ;
+  rdfs:label "经营分析本体" .
+
+# 2. 核心实体类定义（对应业务核心主体，标注语义说明）
+bacls:AnalysisTopic a owl:Class ;
+  rdfs:label "分析主题" ;
+  rdfs:comment "经营分析的顶层主题，包含多个分析场景" .
+
+bacls:AnalysisScenario a owl:Class ;
+  rdfs:label "分析场景" ;
+  rdfs:comment "分析主题下的具体业务分析场景，关联组织、指标维度分析单元等" .
+
+bacls:Organization a owl:Class ;
+  rdfs:label "组织" ;
+  rdfs:comment "涉及分析场景的组织实体" .
+
+bacls:Dimension a owl:Class ;
+  rdfs:label "维度" ;
+  rdfs:comment "指标维度分析单元中的分析维度" .
+
+bacls:MetricDimensionUnit a owl:Class ;
+  rdfs:label "指标+维度分析单元" ;
+  rdfs:comment "指标与维度的组合分析单元，关联异常规则和业务指标" .
+
+bacls:AbnormalRule a owl:Class ;
+  rdfs:label "异常判断规则" ;
+  rdfs:comment "指标维度分析单元对应的异常判断规则，用于识别业务异常" .
+
+bacls:PainPoint a owl:Class ;
+  rdfs:label "痛点" ;
+  rdfs:comment "异常规则对应的业务痛点描述" .
+
+bacls:RootCause a owl:Class ;
+  rdfs:label "根因" ;
+  rdfs:comment "痛点对应的根本原因分析，包含大类/小类根因及分析方法" .
+
+bacls:ImproveMeasure a owl:Class ;
+  rdfs:label "改善措施" ;
+  rdfs:comment "根因对应的改善措施、措施类型及关联指标" .
+
+bacls:BusinessMetric a owl:Class ;
+  rdfs:label "业务指标" ;
+  rdfs:comment "指标维度分析单元包含的具体业务指标" .
+
+# 3. 分析主题（AnalysisTopic）属性
+baprop:topicAnalysisTopicName a owl:DatatypeProperty ;
+  rdfs:label "分析主题名称" ;
+  rdfs:domain bacls:AnalysisTopic ;
+  rdfs:range xsd:string ;
+  rdfs:comment "分析主题的名称" .
+
+# 4. 分析场景（AnalysisScenario）属性
+baprop:scenarioScenarioName a owl:DatatypeProperty ;
+  rdfs:label "分析场景名称" ;
+  rdfs:domain bacls:AnalysisScenario ;
+  rdfs:range xsd:string ;
+  rdfs:comment "分析场景的名称" .
+
+# 5. 组织（Organization）属性
+baprop:orgOrgName a owl:DatatypeProperty ;
+  rdfs:label "组织名称" ;
+  rdfs:domain bacls:Organization ;
+  rdfs:range xsd:string ;
+  rdfs:comment "组织的名称" .
+
+# 6. 维度（Dimension）属性
+baprop:dimensionDimensionName a owl:DatatypeProperty ;
+  rdfs:label "维度名称" ;
+  rdfs:domain bacls:Dimension ;
+  rdfs:range xsd:string ;
+  rdfs:comment "维度的名称" .
+
+# 7. 异常判断规则（AbnormalRule）属性
+baprop:abnormalRuleAbnormalRuleDesc a owl:DatatypeProperty ;
+  rdfs:label "异常规则描述" ;
+  rdfs:domain bacls:AbnormalRule ;
+  rdfs:range xsd:string ;
+  rdfs:comment "异常判断规则的详细描述" .
+
+# 8. 痛点（PainPoint）属性
+baprop:painPointPainPointDesc a owl:DatatypeProperty ;
+  rdfs:label "痛点描述" ;
+  rdfs:domain bacls:PainPoint ;
+  rdfs:range xsd:string ;
+  rdfs:comment "痛点的详细描述" .
+
+# 9. 根因（RootCause）属性
+baprop:rootCauseRootCauseL1Name a owl:DatatypeProperty ;
+  rdfs:label "根因大类" ;
+  rdfs:domain bacls:RootCause ;
+  rdfs:range xsd:string ;
+  rdfs:comment "根因的大类名称" .
+
+baprop:rootCauseRootCauseL2Name a owl:DatatypeProperty ;
+  rdfs:label "根因小类" ;
+  rdfs:domain bacls:RootCause ;
+  rdfs:range xsd:string ;
+  rdfs:comment "根因的小类名称" .
+
+baprop:rootCauseRootCauseAnalysisMethod a owl:DatatypeProperty ;
+  rdfs:label "根因分析方法" ;
+  rdfs:domain bacls:RootCause ;
+  rdfs:range xsd:string ;
+  rdfs:comment "根因的分析方法描述" .
+
+# 10. 改善措施（ImproveMeasure）属性
+baprop:improveMeasureImproveMeasure a owl:DatatypeProperty ;
+  rdfs:label "改善措施内容" ;
+  rdfs:domain bacls:ImproveMeasure ;
+  rdfs:range xsd:string ;
+  rdfs:comment "改善措施的具体内容描述" .
+
+baprop:improveMeasureImproveMeasureType a owl:DatatypeProperty ;
+  rdfs:label "改善措施类型" ;
+  rdfs:domain bacls:ImproveMeasure ;
+  rdfs:range xsd:string ;
+  rdfs:comment "改善措施的类型分类" .
+
+baprop:improveMeasureRelatedMetricId a owl:DatatypeProperty ;
+  rdfs:label "关联指标ID" ;
+  rdfs:domain bacls:ImproveMeasure ;
+  rdfs:range xsd:string ;
+  rdfs:comment "改善措施关联的业务指标ID" .
+
+baprop:improveMeasureRelatedMetricName a owl:DatatypeProperty ;
+  rdfs:label "关联指标名称" ;
+  rdfs:domain bacls:ImproveMeasure ;
+  rdfs:range xsd:string ;
+  rdfs:comment "改善措施关联的业务指标名称" .
+
+# 11. 业务指标（BusinessMetric）属性
+baprop:businessMetricMetricId a owl:DatatypeProperty ;
+  rdfs:label "业务指标ID" ;
+  rdfs:domain bacls:BusinessMetric ;
+  rdfs:range xsd:string ;
+  rdfs:comment "业务指标的唯一标识" .
+
+baprop:businessMetricMetricName a owl:DatatypeProperty ;
+  rdfs:label "业务指标名称" ;
+  rdfs:domain bacls:BusinessMetric ;
+  rdfs:range xsd:string ;
+  rdfs:comment "业务指标的名称" .
+
+# 12. 核心业务关联关系（与业务图严格对齐）
+
+## 关系1: 分析主题 → 分析场景（包括）
+baprop:includesScenario rdf:type owl:ObjectProperty ;
+  rdfs:label "包括分析场景" ;
+  rdfs:domain bacls:AnalysisTopic ;
+  rdfs:range bacls:AnalysisScenario ;
+  rdfs:comment "分析主题包括的分析场景" .
+
+## 关系2: 分析场景 → 指标+维度分析单元（涉及）
+baprop:involvesMetricDimensionUnit rdf:type owl:ObjectProperty ;
+  rdfs:label "涉及指标维度分析单元" ;
+  rdfs:domain bacls:AnalysisScenario ;
+  rdfs:range bacls:MetricDimensionUnit ;
+  rdfs:comment "分析场景涉及的指标维度分析单元" .
+
+## 关系3: 组织 → 分析场景（涉及）
+baprop:involvesScenario rdf:type owl:ObjectProperty ;
+  rdfs:label "涉及分析场景" ;
+  rdfs:domain bacls:Organization ;
+  rdfs:range bacls:AnalysisScenario ;
+  rdfs:comment "组织涉及的分析场景" .
+
+## 关系4: 指标+维度分析单元 → 维度（包含）
+baprop:containsDimension rdf:type owl:ObjectProperty ;
+  rdfs:label "包含维度" ;
+  rdfs:domain bacls:MetricDimensionUnit ;
+  rdfs:range bacls:Dimension ;
+  rdfs:comment "指标维度分析单元包含的维度" .
+
+## 关系5: 指标+维度分析单元 → 异常判断规则（的）
+baprop:hasAbnormalRule rdf:type owl:ObjectProperty ;
+  rdfs:label "的异常判断规则" ;
+  rdfs:domain bacls:MetricDimensionUnit ;
+  rdfs:range bacls:AbnormalRule ;
+  rdfs:comment "指标维度分析单元对应的异常判断规则" .
+
+## 关系6: 指标+维度分析单元 → 业务指标（包含）
+baprop:containsBusinessMetric rdf:type owl:ObjectProperty ;
+  rdfs:label "包含业务指标" ;
+  rdfs:domain bacls:MetricDimensionUnit ;
+  rdfs:range bacls:BusinessMetric ;
+  rdfs:comment "指标维度分析单元包含的业务指标" .
+
+## 关系7: 异常判断规则 → 痛点（对应）
+baprop:correspondsToPainPoint rdf:type owl:ObjectProperty ;
+  rdfs:label "对应痛点" ;
+  rdfs:domain bacls:AbnormalRule ;
+  rdfs:range bacls:PainPoint ;
+  rdfs:comment "异常判断规则对应的痛点" .
+
+## 关系8: 痛点 → 根因（对应）
+baprop:correspondsToRootCause rdf:type owl:ObjectProperty ;
+  rdfs:label "对应根因" ;
+  rdfs:domain bacls:PainPoint ;
+  rdfs:range bacls:RootCause ;
+  rdfs:comment "痛点对应的根因" .
+
+## 关系9: 根因 → 改善措施（对应）
+baprop:correspondsToImproveMeasure rdf:type owl:ObjectProperty ;
+  rdfs:label "对应改善措施" ;
+  rdfs:domain bacls:RootCause ;
+  rdfs:range bacls:ImproveMeasure ;
+  rdfs:comment "根因对应的改善措施" .
