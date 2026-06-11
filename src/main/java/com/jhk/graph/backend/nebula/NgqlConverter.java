@@ -253,22 +253,22 @@ public class NgqlConverter {
                 PatternEdge edge = chainEdges.get(ei);
                 int curEdgeIdx = firstEdgeIdx + ei;
 
-                // Source node filters
+                // Source node filters (use var.tag format, consistent with path/traverse)
                 String fromId = edge.getFrom();
                 PatternVertex fromV = nodeMap.get(fromId);
                 if (fromV != null && fromV.hasFilters() && filterDeclared.contains(fromId)) {
-                    String filterExpr = buildFilterConditions(fromId, fromV.getFilters());
+                    String filterExpr = buildFilterConditions(fromId + "." + fromV.getType(), fromV.getFilters());
                     if (!filterExpr.isEmpty()) {
                         segConditions.add(filterExpr);
                         filterDeclared.remove(fromId);
                     }
                 }
 
-                // Target node filters
+                // Target node filters (use var.tag format, consistent with path/traverse)
                 String toId = edge.getTo();
                 PatternVertex toV = nodeMap.get(toId);
                 if (toV != null && toV.hasFilters() && filterDeclared.contains(toId)) {
-                    String filterExpr = buildFilterConditions(toId, toV.getFilters());
+                    String filterExpr = buildFilterConditions(toId + "." + toV.getType(), toV.getFilters());
                     if (!filterExpr.isEmpty()) {
                         segConditions.add(filterExpr);
                         filterDeclared.remove(toId);
@@ -299,12 +299,14 @@ public class NgqlConverter {
         // ... (skipped for now, should be handled by adding them to last segment's WHERE)
 
         // RETURN clause
+        int limit = request.getLimit() != null ? request.getLimit() : 10;
         ngql.append(" RETURN ");
         if (selectVars != null && selectVars.length > 0) {
             ngql.append(String.join(", ", selectVars));
         } else {
             ngql.append(String.join(", ", allPathVars));
         }
+        ngql.append(" LIMIT ").append(limit);
 
         return ngql.toString();
     }

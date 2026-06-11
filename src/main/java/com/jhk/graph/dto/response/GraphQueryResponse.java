@@ -96,7 +96,7 @@ public class GraphQueryResponse {
 
         public EdgeResult(String id, String from, String to, String label, Map<String, Object> properties) {
             super();
-            put(ID_KEY, id);
+            if (id != null) put(ID_KEY, id);
             put(FROM_KEY, from);
             put(TO_KEY, to);
             put(LABEL_KEY, label);
