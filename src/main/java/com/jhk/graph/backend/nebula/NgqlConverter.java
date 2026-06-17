@@ -146,7 +146,7 @@ public class NgqlConverter {
         // Build node map for lookup
         Map<String, PatternVertex> nodeMap = new java.util.HashMap<>();
         for (PatternVertex v : nodes) {
-            nodeMap.put(v.getId(), v);
+            nodeMap.put(v.getAs(), v);
         }
 
         StringBuilder ngql = new StringBuilder();
@@ -370,17 +370,15 @@ public class NgqlConverter {
         if (value instanceof Map) {
             Map<String, Object> opMap = (Map<String, Object>) value;
             for (Map.Entry<String, Object> opEntry : opMap.entrySet()) {
-                String op = opEntry.getKey();
-                Object opValue = opEntry.getValue();
-                return buildOperatorCondition(prefix, prop, op, opValue);
+                return buildOperatorCondition(prefix, prop, opEntry.getKey(), opEntry.getValue());
             }
         }
-        // Direct value
-        return prefix + "." + prop + " == '" + escapeNgqlValue(value) + "'";
+        // Direct value: id(varname) for id prop, prefix.prop for normal props
+        return buildPropertyExpr(prefix, prop) + " == '" + escapeNgqlValue(value) + "'";
     }
 
     private String buildOperatorCondition(String prefix, String prop, String op, Object value) {
-        String expr = prefix + "." + prop;
+        String expr = buildPropertyExpr(prefix, prop);
         return switch (op) {
             case "$eq" -> expr + " == '" + escapeNgqlValue(value) + "'";
             case "$ne" -> expr + " != '" + escapeNgqlValue(value) + "'";
@@ -418,6 +416,15 @@ public class NgqlConverter {
             }
             default -> "";
         };
+    }
+
+    /** Build property reference: id(varname) for id prop, prefix.prop for normal props */
+    private String buildPropertyExpr(String prefix, String prop) {
+        if ("id".equals(prop)) {
+            String var = prefix.contains(".") ? prefix.substring(0, prefix.indexOf('.')) : prefix;
+            return "id(" + var + ")";
+        }
+        return prefix + "." + prop;
     }
 
     private String escapeNgqlValue(Object value) {

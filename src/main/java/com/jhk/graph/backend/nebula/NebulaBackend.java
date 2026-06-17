@@ -7,11 +7,6 @@ import com.jhk.graph.dto.response.GraphQueryResponse;
 import com.jhk.graph.exception.GraphQueryException;
 import com.vesoft.nebula.client.graph.data.ResultSet;
 import com.vesoft.nebula.client.graph.data.ValueWrapper;
-import com.vesoft.nebula.client.graph.exception.AuthFailedException;
-import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
-import com.vesoft.nebula.client.graph.exception.IOErrorException;
-import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
-import com.vesoft.nebula.client.graph.net.Session;
 import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -56,38 +51,18 @@ public class NebulaBackend implements GraphBackend {
     }
 
     private GraphQueryResponse executeNgql(String ngql, String queryType, String resultScope) {
-        Session session;
         try {
-            session = connection.getSession();
-        } catch (NotValidConnectionException | IOErrorException | AuthFailedException | ClientServerIncompatibleException e) {
-            throw new GraphQueryException("BACKEND_ERROR", "Failed to get Nebula session: " + e.getMessage(), e);
-        }
-        try {
-            // First, USE the space
-            String space = connection.getSpace();
-            ResultSet useRs = session.execute("USE " + space);
-            if (!useRs.isSucceeded()) {
-                throw new GraphQueryException("BACKEND_ERROR", "Failed to use space " + space + ": " + useRs.getErrorMessage());
-            }
-
-            // Then execute the actual query
-            ResultSet rs = session.execute(ngql);
+            // SessionPool handles: authentication, USE space, connection retry automatically
+            ResultSet rs = connection.execute(ngql);
             if (!rs.isSucceeded()) {
                 String errorMsg = rs.getErrorMessage();
                 throw new GraphQueryException("BACKEND_ERROR", "nGQL execution failed: " + errorMsg);
             }
             return parseResult(rs, queryType, resultScope);
+        } catch (GraphQueryException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof GraphQueryException) {
-                throw (GraphQueryException) e;
-            }
             throw new GraphQueryException("BACKEND_ERROR", "nGQL execution failed: " + e.getMessage(), e);
-        } finally {
-            try {
-                connection.releaseSession(session);
-            } catch (IOErrorException e) {
-                // ignore - session release failure
-            }
         }
     }
 

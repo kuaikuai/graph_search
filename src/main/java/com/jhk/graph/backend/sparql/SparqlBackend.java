@@ -27,9 +27,11 @@ public class SparqlBackend implements GraphBackend {
 
     private final OntologyQueryEngine engine;
     private final SparqlProperties config;
+    private final SparqlBuilder builder;
 
     public SparqlBackend(SparqlProperties config) {
         this.config = config;
+        this.builder = new SparqlBuilder(config);
         try {
             this.engine = new OntologyQueryEngine(config.getOntologyPath(), config.getEndpoint());
         } catch (IOException e) {
@@ -95,7 +97,7 @@ public class SparqlBackend implements GraphBackend {
             return buildPathSparqlWithInlineFilter(sourceObj.getType(), sourceObj.getFilters(), targetType, request.getTargetProperties());
         }
 
-        // 否则使用 engine.buildQuery（source 作为锚点约束）
+        // 否则使用 engine.buildQuery（source 作为锚点约束）1
         Map<String, List<String>> constraints = new HashMap<>();
         String sourceId = sourceObj.hasId() ? sourceObj.getId() : sourceObj.getType();
         constraints.put("_source_", List.of(sourceId));
@@ -134,20 +136,7 @@ public class SparqlBackend implements GraphBackend {
         }
         String firstPropName = getSimpleName(firstProp);
 
-        sb.append("  ").append(sourceVar).append(" baprop:").append(firstPropName).append(" ").append(firstVar).append(" .\n");
-
-        // 中间节点
-        for (int i = 1; i < nodes.size(); i++) {
-            com.jhk.graph.query.GraphNode current = nodes.get(i);
-            String currentVar = varNameForType(getSimpleName(current.cls()));
-            Resource propRes = parentMap.get(current.cls()) != null ? parentMap.get(current.cls()).property() : current.property();
-            if (propRes != null) {
-                String propName = getSimpleName(propRes);
-                com.jhk.graph.query.GraphNode prev = nodes.get(i - 1);
-                String prevVar = varNameForType(getSimpleName(prev.cls()));
-                sb.append("  ").append(prevVar).append(" baprop:").append(propName).append(" ").append(currentVar).append(" .\n");
-            }
-        }
+        sb.append(builder.edgeDecl(sourceVar, firstPropName, firstVar));
 
         return sb.toString();
     }
@@ -249,28 +238,19 @@ public class SparqlBackend implements GraphBackend {
         String propFilter = buildEdgeLabelsFilter(edgeLabels);
 
         String sparql;
+        String prefixBlock = builder.buildPrefixBlock();
         if ("out".equals(direction) || "both".equals(direction)) {
-            sparql = """
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-                PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-                SELECT DISTINCT ?neighbor ?prop WHERE {
-                    ?neighbor ?prop <%s> .
-                    ?prop rdf:type baprop:Property .
-                    %s
-                }
-                """.formatted(startNode, propFilter);
+            sparql = prefixBlock + "SELECT DISTINCT ?neighbor ?prop WHERE {\n"
+                + "    ?neighbor ?prop <" + startNode + "> .\n"
+                + "    ?prop rdf:type " + builder.getPropPrefix() + ":Property .\n"
+                + propFilter + "\n"
+                + "}";
         } else {
-            sparql = """
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-                PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-                SELECT DISTINCT ?neighbor ?prop WHERE {
-                    <%s> ?prop ?neighbor .
-                    ?prop rdf:type baprop:Property .
-                    %s
-                }
-                """.formatted(startNode, propFilter);
+            sparql = prefixBlock + "SELECT DISTINCT ?neighbor ?prop WHERE {\n"
+                + "    <" + startNode + "> ?prop ?neighbor .\n"
+                + "    ?prop rdf:type " + builder.getPropPrefix() + ":Property .\n"
+                + propFilter + "\n"
+                + "}";
         }
         return sparql;
     }
@@ -305,19 +285,14 @@ public class SparqlBackend implements GraphBackend {
         String whereClause = request.getWhere();
 
         StringBuilder sparql = new StringBuilder();
-        sparql.append("""
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-            PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-
-            """);
+        sparql.append(builder.buildPrefixBlock());
 
         // SELECT
         sparql.append("SELECT DISTINCT ");
         if (nodes != null && edges != null) {
             StringBuilder selectParts = new StringBuilder();
             for (int i = 0; i < nodes.length; i++) {
-                selectParts.append("?").append(nodes[i].getId());
+                selectParts.append("?").append(nodes[i].getAs());
                 if (i < nodes.length - 1) selectParts.append(" ");
             }
             sparql.append(selectParts);
@@ -348,7 +323,7 @@ public class SparqlBackend implements GraphBackend {
                         var = "?v" + i;
                     }
                     if (elem.getType() != null) {
-                        sparql.append("  ").append(var).append(" rdf:type bacls:").append(elem.getType()).append(" .\n");
+                        sparql.append(builder.typeDecl(var, elem.getType()));
                     }
                     prevVar = var;
                 } else {
@@ -365,7 +340,7 @@ public class SparqlBackend implements GraphBackend {
                         to = "?v" + (i + 1);
                     }
                     String edgeName = elem.getEdge() != null ? elem.getEdge() : "";
-                    sparql.append("  ").append(from).append(" baprop:").append(edgeName).append(" ").append(to).append(" .\n");
+                    sparql.append(builder.edgeDecl(from, edgeName, to));
                     prevVar = to;
                 }
             }
@@ -607,16 +582,12 @@ public class SparqlBackend implements GraphBackend {
 
         // OUT: subject --pred--> instanceUri (instanceUri 是 object)
         if ("out".equals(direction) || "both".equals(direction)) {
-            String sparqlOut = """
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-                PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-                SELECT DISTINCT ?neighbor WHERE {
-                    ?neighbor ?prop <%s> .
-                    ?prop rdf:type baprop:Property .
-                    %s
-                }
-                """.formatted(instanceUri, propFilter);
+            String sparqlOut = builder.buildPrefixBlock()
+                + "SELECT DISTINCT ?neighbor WHERE {\n"
+                + "    ?neighbor ?prop <" + instanceUri + "> .\n"
+                + "    ?prop rdf:type " + builder.getPropPrefix() + ":Property .\n"
+                + (propFilter.isEmpty() ? "" : "    " + propFilter + "\n")
+                + "}";
 
             try {
                 Query query = QueryFactory.create(sparqlOut);
@@ -635,16 +606,12 @@ public class SparqlBackend implements GraphBackend {
 
         // IN: instanceUri --pred--> object (instanceUri 是 subject)
         if ("in".equals(direction) || "both".equals(direction)) {
-            String sparqlIn = """
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-                PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-                SELECT DISTINCT ?neighbor WHERE {
-                    <%s> ?prop ?neighbor .
-                    ?prop rdf:type baprop:Property .
-                    %s
-                }
-                """.formatted(instanceUri, propFilter);
+            String sparqlIn = builder.buildPrefixBlock()
+                + "SELECT DISTINCT ?neighbor WHERE {\n"
+                + "    <" + instanceUri + "> ?prop ?neighbor .\n"
+                + "    ?prop rdf:type " + builder.getPropPrefix() + ":Property .\n"
+                + (propFilter.isEmpty() ? "" : "    " + propFilter + "\n")
+                + "}";
 
             try {
                 Query query = QueryFactory.create(sparqlIn);
@@ -675,12 +642,10 @@ public class SparqlBackend implements GraphBackend {
 
     private String inferType(String instanceUri) {
         // 从 RDF 类型推断
-        String typeSparql = """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            SELECT ?type WHERE {
-                <%s> rdf:type ?type .
-            } LIMIT 1
-            """.formatted(instanceUri);
+        String typeSparql = builder.buildPrefixBlock()
+            + "SELECT ?type WHERE {\n"
+            + "    <" + instanceUri + "> rdf:type ?type .\n"
+            + "} LIMIT 1";
 
         try {
             Query query = QueryFactory.create(typeSparql);
@@ -726,12 +691,7 @@ public class SparqlBackend implements GraphBackend {
         StringBuilder sparql = new StringBuilder();
 
         // PREFIX
-        sparql.append("""
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX bacls: <http://www.jhk.com/finance/business-analysis/class/>
-            PREFIX baprop: <http://www.jhk.com/finance/business-analysis/property/>
-
-            """);
+        sparql.append(builder.buildPrefixBlock());
 
         // SELECT - return all selected variables
         sparql.append("SELECT DISTINCT ");
@@ -739,7 +699,7 @@ public class SparqlBackend implements GraphBackend {
             // New structure: select all node ids
             StringBuilder selectParts = new StringBuilder();
             for (int i = 0; i < nodes.length; i++) {
-                selectParts.append("?").append(nodes[i].getId());
+                selectParts.append("?").append(nodes[i].getAs());
                 if (i < nodes.length - 1) selectParts.append(" ");
             }
             sparql.append(selectParts);
@@ -815,9 +775,9 @@ public class SparqlBackend implements GraphBackend {
     private void buildSparqlFromNodesEdges(StringBuilder sparql, com.jhk.graph.dto.request.PatternVertex[] nodes, com.jhk.graph.dto.request.PatternEdge[] edges) {
         // Build variable declarations and type constraints for nodes
         for (com.jhk.graph.dto.request.PatternVertex v : nodes) {
-            String var = "?" + v.getId();
+            String var = "?" + v.getAs();
             if (v.getType() != null) {
-                sparql.append("  ").append(var).append(" rdf:type bacls:").append(v.getType()).append(" .\n");
+                sparql.append(builder.typeDecl(var, v.getType()));
             }
             if (v.hasFilters()) {
                 FilterExpressionBuilder.FilterResult filterResult =
@@ -832,12 +792,12 @@ public class SparqlBackend implements GraphBackend {
             String from = "?" + e.getFrom();
             String to = "?" + e.getTo();
             String label = e.getLabel() != null ? e.getLabel() : "*";
-            sparql.append("  ").append(from).append(" baprop:").append(label).append(" ").append(to).append(" .\n");
+            sparql.append(builder.edgeDecl(from, label, to));
 
             // Edge property filters
             if (e.hasFilters()) {
                 String edgeVar = "?_" + e.getFrom() + "_" + e.getTo();
-                sparql.append("  ").append(from).append(" baprop:").append(label).append(" ").append(to).append(" .\n");
+                sparql.append(builder.edgeDecl(from, label, to));
                 // Note: SPARQL doesn't have edge property filters like nGQL, so we skip edge props for now
             }
         }
@@ -864,7 +824,7 @@ public class SparqlBackend implements GraphBackend {
                 }
 
                 if (elem.getType() != null) {
-                    sparql.append("  ").append(var).append(" rdf:type bacls:").append(elem.getType()).append(" .\n");
+                    sparql.append(builder.typeDecl(var, elem.getType()));
                 }
 
                 if (elem.getFilters() != null && !elem.getFilters().isEmpty()) {
@@ -887,7 +847,7 @@ public class SparqlBackend implements GraphBackend {
                 }
 
                 String edgeName = elem.getEdge();
-                sparql.append("  ").append(from).append(" baprop:").append(edgeName).append(" ").append(to).append(" .\n");
+                sparql.append(builder.edgeDecl(from, edgeName, to));
                 prevVar = to;
             }
         }

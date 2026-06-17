@@ -258,6 +258,30 @@ public class GraphSearchApplication {
             props.setOntologyPath(ontologyPath);
             props.setEndpoint(endpoint);
 
+            // Read optional prefix configuration
+            Object prefixCfg = sparqlCfg.get("prefixes");
+            if (prefixCfg instanceof Map) {
+                Map<String, Object> prefixMap = (Map<String, Object>) prefixCfg;
+                Map<String, String> resolved = new java.util.LinkedHashMap<>();
+                for (Map.Entry<String, Object> e : prefixMap.entrySet()) {
+                    resolved.put(e.getKey(), e.getValue() != null ? e.getValue().toString() : "");
+                }
+                props.setPrefixes(resolved);
+            }
+            // Backward compatibility: if "prefix" is set, it populates bacls/baprop defaults
+            if (sparqlCfg.containsKey("prefix")) {
+                props.setPrefix((String) sparqlCfg.get("prefix"));
+            }
+            if (sparqlCfg.containsKey("typePrefix")) {
+                props.setTypePrefix((String) sparqlCfg.get("typePrefix"));
+            }
+            if (sparqlCfg.containsKey("propPrefix")) {
+                props.setPropPrefix((String) sparqlCfg.get("propPrefix"));
+            }
+
+            System.out.println("  Prefixes: " + props.getPrefixes());
+            System.out.println("  typePrefix: " + props.getTypePrefix() + ", propPrefix: " + props.getPropPrefix());
+
             System.out.println("  Initializing SparqlBackend...");
             backend = new SparqlBackend(props);
             System.out.println("  SparqlBackend created OK");
